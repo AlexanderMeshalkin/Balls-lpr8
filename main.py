@@ -26,6 +26,10 @@ class Position:
         self.x = x
         self.y = y
 
+    def addVector(self, vector):
+        self.x += vector.x
+        self.y += vector.y
+
     def distance(self, pos):
         return ((self.x - pos.x) ** 2 + (self.y - pos.y) ** 2) ** 0.5
 
@@ -39,8 +43,6 @@ class Ball:
         self.color = color
         self.velocity = velocity
         self.mass = r ** 3
-        self.height = 900 - self.pos.y
-        self.energy = self.mass * g.length * self.height + 0.5 * self.mass * (math.pow(self.velocity.length, 2))
         self.isDestroyed = False
 
     def draw(self):
@@ -49,25 +51,25 @@ class Ball:
     def update(self):
         global g
         if not self.isDestroyed:
+
             circle(screen, BLACK, (self.pos.x, self.pos.y), self.r)
-            self.height = 900 - self.pos.y
-            if self.velocity.y == 0:
-                self.velocity.add(g)
-            else:
-                if self.velocity.y - g.length != 0:
-                    p = (self.velocity.y + g.length) / abs(self.velocity.y + g.length)
-                else:
-                    p = 1
-                if (2 * (self.energy / self.mass - g.length * self.height)) - math.pow(self.velocity.x, 2) < 0:
-                    self.velocity.y = -self.velocity.y
-                else:
-                    self.velocity.y = p * (math.pow(((2 * (self.energy / self.mass - g.length * self.height)) - math.pow(self.velocity.x, 2)), 0.5))
-            self.pos.x += self.velocity.x
-            self.pos.y += self.velocity.y
-            if self.checkVerticalWallCollision():
-                self.verticalWallCollision()
+
+            #Collision processing
+
+            isCollision = False
             if self.checkHorizontalWallCollision():
+                isCollision = True
                 self.horizontalWallCollision()
+            if self.checkVerticalWallCollision():
+                isCollision = True
+                self.verticalWallCollision()
+
+            #Gravity processing
+
+            self.velocity.add(g)
+            self.pos.addVector(self.velocity)
+
+
             circle(screen, self.color, (self.pos.x, self.pos.y), self.r)
 
     def destroy(self):
@@ -76,17 +78,29 @@ class Ball:
         circle(screen, BLACK, (self.pos.x, self.pos.y), self.r)
         ballsQuantity -= 1
 
-    def checkHorizontalWallCollision(self):
-        return (self.pos.x <= self.r) or (self.pos.x >= 1600 - self.r)
-
     def checkVerticalWallCollision(self):
-        return (self.pos.y <= self.r) or (self.pos.y >= 900 - self.r)
+        global SCREEN_WIDTH
+        return (self.pos.x <= self.r and self.velocity.x < 0) or (self.pos.x >= SCREEN_WIDTH - self.r and self.velocity.x > 0)
 
-    def horizontalWallCollision(self):
-        self.velocity.x = -self.velocity.x
+    def checkHorizontalWallCollision(self):
+        global SCREEN_HEIGHT
+        return (self.pos.y <= self.r and self.velocity.y < 0) or (self.pos.y >= SCREEN_HEIGHT - self.r and self.velocity.y > 0)
 
     def verticalWallCollision(self):
+        global SCREEN_WIDTH
+        self.velocity.x = -self.velocity.x
+        if self.pos.x <= self.r:
+            self.pos.r = self.r
+        else:
+            self.pos.x = SCREEN_WIDTH - self.r
+
+    def horizontalWallCollision(self):
+        global SCREEN_HEIGHT
         self.velocity.y = -self.velocity.y
+        if self.pos.y <= self.r:
+            self.pos.y = self.r
+        else:
+            self.pos.y = SCREEN_HEIGHT - self.r
 
 
 
@@ -101,7 +115,12 @@ pygame.init()
 
 FPS = 60
 ballsQuantity = 0
-screen = pygame.display.set_mode((1600, 900))
+
+#Display resolution
+SCREEN_WIDTH = 1536
+SCREEN_HEIGHT = 864
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 balls = []
 g = Vector(0, 2.5)
