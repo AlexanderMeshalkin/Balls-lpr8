@@ -177,6 +177,9 @@ ballsCollision = BallsCollision()
 balls = []
 g = Vector(0, 2.5)
 
+g_list = [Vector(0, 2.5), Vector(2.5, 0), Vector(0, -2.5), Vector(-2.5, 0)]
+g_index = 0
+
 x_axis = Axis(Position(0, 0), Vector(1, 0))
 y_axis = Axis(Position(0, 0), Vector(0, 1))
 
@@ -251,6 +254,11 @@ while not finished:
             ball = check_for_balls(Position(event.pos[0], event.pos[1]))
             if ball != None:
                 ball.destroy()
+            if g_index == 3:
+                g_index = 0
+            else:
+                g_index += 1
+            g = g_list[g_index]
 
     if randint(1, ballsQuantity * 40 + 1) == 1:
         new_ball()
