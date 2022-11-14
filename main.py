@@ -7,17 +7,33 @@ class Vector:
         self.length = (x ** 2 + y ** 2) ** 0.5
 
     def add(self, vector):
-        self.x += vector.x
-        self.y += vector.y
-        self.length = (self.x ** 2 + self.y ** 2) ** 0.5
+        return Vector(self.x + vector.x, self.y + vector.y)
 
     def multiplyByNumber(self, k):
-        self.x *= k
-        self.y *= k
-        self.length *= k
+        return Vector(self.x * k, self.y * k)
 
     def scalarProduct(self, vector):
         return self.x * vector.x + self.y * vector.y
+
+    def projection(self, axis):
+        return axis.vector.multiplyByNumber(self.scalarProduct(axis.vector))
+
+    def isCollinear(self, vector):
+        return self.x * vector.y == self.y * vector.x
+
+    def isCoDirected(self, vector):
+        if self.length == 0:
+            return True
+        if vector.length == 0:
+            return True
+        return self.isCollinear(vector) and (self.x * vector.x > 0 or self.y * vector.y > 0)
+
+    def isOppositeDirected(self, vector):
+        if self.length == 0:
+            return True
+        if vector.length == 0:
+            return True
+        return self.isCollinear(vector) and (self.x * vector.x < 0 or self.y * vector.y < 0)
 
 
 
@@ -33,6 +49,12 @@ class Position:
     def distance(self, pos):
         return ((self.x - pos.x) ** 2 + (self.y - pos.y) ** 2) ** 0.5
 
+
+class Axis:
+    def __init__(self, pos, vector):
+        self.pos = pos
+        self.vector = vector
+        self.vector = self.vector.multiplyByNumber(1 / self.vector.length)
 
 class Ball:
 
@@ -66,7 +88,7 @@ class Ball:
 
             #Gravity processing
 
-            self.velocity.add(g)
+            self.velocity = self.velocity.add(g)
             self.pos.addVector(self.velocity)
 
 
@@ -104,10 +126,38 @@ class Ball:
 
 
 
+#Balls' collisions processor
+class BallsCollision:
+
+    def __init__(self):
+        pass
+
+    def checkBallsCollision(self, ball1, ball2):
+        if (ball1.pos.distance(ball2.pos) < ball1.r + ball2.r):
+            vectorCollision = Vector(ball2.pos.x - ball1.pos.x, ball2.pos.y - ball1.pos.y)
+            if ball1.velocity.add(ball2.velocity.multiplyByNumber(-1)).scalarProduct(vectorCollision) > 0:
+                return True
+        return False
+
+    def collision(self, ball1, ball2):
+        vectorCollision = Vector(ball2.pos.x - ball1.pos.x, ball2.pos.y - ball1.pos.y)
+        collisionAxis = Axis(ball1.pos, vectorCollision)
+        v10 = ball1.velocity.projection(collisionAxis)
+        v20 = ball2.velocity.projection(collisionAxis)
+        v1 = v10.add(v20.multiplyByNumber(-1))
+        dv1 = v1.multiplyByNumber(-2 * ball2.mass / (ball1.mass + ball2.mass))
+        dv2 = v1.multiplyByNumber(2 * ball1.mass / (ball1.mass + ball2.mass))
+        ball1.velocity = ball1.velocity.add(dv1)
+        ball2.velocity = ball2.velocity.add(dv2)
+
+
+
+
+
+
 
 
 import pygame
-import math
 from pygame.draw import *
 from random import randint
 
@@ -122,8 +172,13 @@ SCREEN_HEIGHT = 864
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+ballsCollision = BallsCollision()
+
 balls = []
 g = Vector(0, 2.5)
+
+x_axis = Axis(Position(0, 0), Vector(1, 0))
+y_axis = Axis(Position(0, 0), Vector(0, 1))
 
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -163,6 +218,12 @@ def newScoreBall():
 
 
 def gameUpdate():
+    for i in range(len(balls) - 1):
+        if not balls[i].isDestroyed:
+            for j in range(i + 1, len(balls)):
+                if not balls[j].isDestroyed:
+                    if ballsCollision.checkBallsCollision(balls[i], balls[j]):
+                        ballsCollision.collision(balls[i], balls[j])
     for ball in balls:
         ball.update()
 
@@ -191,7 +252,7 @@ while not finished:
             if ball != None:
                 ball.destroy()
 
-    if randint(1, ballsQuantity * 3 + 1) == 1:
+    if randint(1, ballsQuantity * 40 + 1) == 1:
         new_ball()
     gameUpdate()
     pygame.display.update()
