@@ -93,10 +93,11 @@ class Ball:
             circle(screen, self.color, (self.pos.x, self.pos.y), self.r)
 
     def destroy(self):
-        global ballsQuantity
+        global ballsQuantity, destroyedBallsQuantity
         self.isDestroyed = True
         circle(screen, BLACK, (self.pos.x, self.pos.y), self.r)
         ballsQuantity -= 1
+        destroyedBallsQuantity += 1
 
     def checkVerticalWallCollision(self):
         global SCREEN_WIDTH
@@ -110,7 +111,7 @@ class Ball:
         global SCREEN_WIDTH
         self.velocity.x = -self.velocity.x
         if self.pos.x <= self.r:
-            self.pos.r = self.r
+            self.pos.x = self.r
         else:
             self.pos.x = SCREEN_WIDTH - self.r
 
@@ -122,6 +123,49 @@ class Ball:
         else:
             self.pos.y = SCREEN_HEIGHT - self.r
 
+
+class CounterBall(Ball):
+    def __init__(self, pos, r, color, velocity):
+        global font, ballsQuantity
+        super(CounterBall, self).__init__(pos, r, color, velocity)
+        self.text = font.render(str(ballsQuantity), True, BLACK, WHITE)
+        self.textRect = self.text.get_rect()
+        self.textRect.center = (self.pos.x, self.pos.y)
+
+    def update(self):
+        global screen
+        if not self.isDestroyed:
+            super(CounterBall, self).update()
+            self.text = font.render(str(ballsQuantity), True, BLACK, WHITE)
+            self.textRect.center = (self.pos.x, self.pos.y)
+            screen.blit(self.text, self.textRect)
+
+    def destroy(self):
+        global font
+        super(CounterBall, self).destroy()
+        self.textRect.center = (-1000, -1000)
+
+
+class CounterDestroyedBall(Ball):
+    def __init__(self, pos, r, color, velocity):
+        global font, destroyedBallsQuantity
+        super(CounterDestroyedBall, self).__init__(pos, r, color, velocity)
+        self.text = font.render(str(destroyedBallsQuantity), True, BLACK, WHITE)
+        self.textRect = self.text.get_rect()
+        self.textRect.center = (self.pos.x, self.pos.y)
+
+    def update(self):
+        global screen, destroyedBallsQuantity
+        if not self.isDestroyed:
+            super(CounterDestroyedBall, self).update()
+            self.text = font.render(str(destroyedBallsQuantity), True, RED, WHITE)
+            self.textRect.center = (self.pos.x, self.pos.y)
+            screen.blit(self.text, self.textRect)
+
+    def destroy(self):
+        global font
+        super(CounterDestroyedBall, self).destroy()
+        self.textRect.center = (-1000, -1000)
 
 
 #Balls' collisions processor
@@ -152,6 +196,8 @@ class BallsCollision:
         dr2 = collisionAxis.vector.multiplyByNumber(ball1.mass * dr / (ball1.mass + ball2.mass))
         ball1.pos.addVector(dr1)
         ball2.pos.addVector(dr2)
+        ball1.pos.addVector(ball1.velocity.multiplyByNumber(-1))
+        ball2.pos.addVector(ball2.velocity.multiplyByNumber(-1))
 
 
 
@@ -168,6 +214,10 @@ pygame.init()
 
 FPS = 60
 ballsQuantity = 0
+destroyedBallsQuantity = 0
+
+font = pygame.font.Font(None, 64)
+zero_font = pygame.font.Font(None, 0)
 
 #Display resolution
 SCREEN_WIDTH = 1536
@@ -178,9 +228,9 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 ballsCollision = BallsCollision()
 
 balls = []
-g = Vector(0, 2.5)
 
-g_list = [Vector(0, 2.5), Vector(2.5, 0), Vector(0, -2.5), Vector(-2.5, 0)]
+g_list = [Vector(0, 1), Vector(1, 0), Vector(0, -1), Vector(-1, 0), Vector(0, 0)]
+g = Vector(0, 0)
 g_index = 0
 
 x_axis = Axis(Position(0, 0), Vector(1, 0))
@@ -201,11 +251,51 @@ def new_ball():
     global ballsQuantity
     x = randint(100, 1100)
     y = randint(100, 900)
-    r = randint(15, 60)
+    r = randint(30, 60)
     vx = randint(-20, 20)
     vy = randint(5, 20) * (randint(0, 1) * 2 - 1)
     color = COLORS[randint(0, 5)]
     ball = Ball(Position(x, y), r, color, Vector(vx, vy))
+    balls.append(ball)
+    balls[-1].draw()
+    ballsQuantity += 1
+
+def create_ball(pos):
+    global ballsQuantity
+    x = pos.x
+    y = pos.y
+    r = randint(30, 60)
+    vx = 0
+    vy = 0
+    color = COLORS[randint(0, 5)]
+    ball = Ball(Position(x, y), r, color, Vector(vx, vy))
+    balls.append(ball)
+    balls[-1].draw()
+    ballsQuantity += 1
+
+def create_counter_ball(pos):
+    global ballsQuantity
+    x = pos.x
+    y = pos.y
+    r = 80
+    vx = 0
+    vy = 0
+    color = WHITE
+    ball = CounterBall(Position(x, y), r, color, Vector(vx, vy))
+    balls.append(ball)
+    balls[-1].draw()
+    ballsQuantity += 1
+
+
+def create_score_ball(pos):
+    global ballsQuantity
+    x = pos.x
+    y = pos.y
+    r = 80
+    vx = 0
+    vy = 0
+    color = WHITE
+    ball = CounterDestroyedBall(Position(x, y), r, color, Vector(vx, vy))
     balls.append(ball)
     balls[-1].draw()
     ballsQuantity += 1
@@ -248,6 +338,8 @@ finished = False
 
 f1 = pygame.font.Font(None, 20)
 
+create_counter_ball(Position(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+create_score_ball(Position(SCREEN_WIDTH / 4, SCREEN_HEIGHT / 4))
 
 while not finished:
     clock.tick(FPS)
@@ -255,17 +347,24 @@ while not finished:
         if event.type == pygame.QUIT:
             finished = True
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            ball = check_for_balls(Position(event.pos[0], event.pos[1]))
-            if ball != None:
-                ball.destroy()
-            if g_index == 3:
-                g_index = 0
-            else:
-                g_index += 1
-            g = g_list[g_index]
+            if event.button == pygame.BUTTON_LEFT:
+                ball = check_for_balls(Position(event.pos[0], event.pos[1]))
+                if ball != None:
+                    ball.destroy()
+            if event.button == pygame.BUTTON_RIGHT:
+                create_ball(Position(event.pos[0], event.pos[1]))
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_DOWN:
+                g = g_list[0]
+            elif event.key == pygame.K_RIGHT:
+                g = g_list[1]
+            elif event.key == pygame.K_UP:
+                g = g_list[2]
+            elif event.key == pygame.K_LEFT:
+                g = g_list[3]
+            elif event.key == pygame.K_SPACE:
+                g = g_list[4]
 
-    if randint(1, ballsQuantity * 40 + 1) == 1:
-        new_ball()
     gameUpdate()
     pygame.display.update()
 
