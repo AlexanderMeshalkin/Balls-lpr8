@@ -74,8 +74,6 @@ class Ball:
         global g
         if not self.isDestroyed:
 
-            circle(screen, BLACK, (self.pos.x, self.pos.y), self.r)
-
             #Collision processing
 
             isCollision = False
@@ -149,6 +147,11 @@ class BallsCollision:
         dv2 = v1.multiplyByNumber(2 * ball1.mass / (ball1.mass + ball2.mass))
         ball1.velocity = ball1.velocity.add(dv1)
         ball2.velocity = ball2.velocity.add(dv2)
+        dr = ball1.pos.distance(ball2.pos)
+        dr1 = collisionAxis.vector.multiplyByNumber(-ball2.mass * dr / (ball1.mass + ball2.mass))
+        dr2 = collisionAxis.vector.multiplyByNumber(ball1.mass * dr / (ball1.mass + ball2.mass))
+        ball1.pos.addVector(dr1)
+        ball2.pos.addVector(dr2)
 
 
 
@@ -221,6 +224,7 @@ def newScoreBall():
 
 
 def gameUpdate():
+    rect(screen, BLACK, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
     for i in range(len(balls) - 1):
         if not balls[i].isDestroyed:
             for j in range(i + 1, len(balls)):
